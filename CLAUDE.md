@@ -10,7 +10,7 @@ download App Store apps with an Apple ID and **install them onto a connected iPh
 It is a thin wrapper around two binaries — `ipatool` (download) and `ideviceinstaller` (install).
 The end goal is **install‑to‑device**, not just downloading.
 
-## Current state snapshot (2026‑06‑15)
+## Current state snapshot (2026‑07‑05)
 
 **Done**
 - Reverse‑engineered the original: PowerShell menu + two bundled binaries.
@@ -34,20 +34,26 @@ The end goal is **install‑to‑device**, not just downloading.
   those (`download` minus `--purchase`: not-owned fails fast, owned starts transferring → aborted). Result
   `{removedOwned, removedNotOwned}` → `Lists/Owned_scan.json`. Surfaced as TUI menu **16** and the GUI
   Lists tab **Scan my apps** (sources "Мои — удалены из App Store" / "Удалены — не куплены").
-- Reference repos: `/Users/dmitriy/code/archive/IPA_Downloader` (orig `446a038`), `/Users/dmitriy/code/archive/ipatool-cpp` (`74f4247`).
+- Reference repos (not kept locally — re‑clone if needed): `kda2495/IPA_Downloader` (orig `446a038`),
+  `Sorvigolova/ipatool` (`74f4247`).
+- **Phase 1 validated on real hardware** (2026‑07): the user downloaded apps and installed them onto
+  a physical device — the port works end‑to‑end.
+- **Shipped (2026‑07‑05):** public repo https://github.com/goslingmanagment/ipa-install-macos,
+  Release v0.1.0 (standalone `IpaInstall.app` + `ipatool` binary as assets). Release‑prep hardening:
+  download via private temp subdir (no mtime races), GUI login feeds secrets over a PTY stdin (never
+  argv), `.app` runs standalone (bundled engine; data in `~/Library/Application Support/IpaInstall`,
+  downloads in `~/Downloads/IPA`).
 
 **Not done yet**
-- **Phase 1: real‑hardware install is NOT yet validated.** Needs a physical iPhone/iPad + an
-  interactive Apple ID login (2FA) — neither can be automated. This is the one remaining unknown.
+- No notarization (users clear quarantine with `xattr -cr`); needs an Apple Developer account.
+- arm64‑only release binaries (Intel users build from source).
+- No GUI screenshot in the README.
 
 ## How to continue
 
-1. **Phase 1 validation only.** Run `python3 -m ipa_install`, log in with a disposable Apple ID,
-   download a free app (menu 2), then install to a connected device (menu 11). Decisive question +
-   checklist: [docs/risks-and-validation.md](docs/risks-and-validation.md) — record results there.
-2. The SwiftUI GUI (Phase 4) is **done and at full 15‑item parity** — `cd gui && ./build_app.sh`,
-   then `open IpaInstall.app` (or `.build/release/IpaInstallGUI --selftest` for headless checks). Once
-   Phase 1 is validated on hardware, the project is functionally complete.
+1. Keep `main` releasable: run `python3 tests/run_checks.py` + `gui/build_app.sh` + `--selftest`
+   before pushing; tag releases `vX.Y.Z` and attach a fresh `IpaInstall.app.zip`.
+2. Candidate next steps: README screenshot, Developer ID signing + notarization, Intel build.
 
 Architecture & module contracts: [docs/architecture.md](docs/architecture.md) and
 [docs/impl-spec.md](docs/impl-spec.md). Keep [plan.md](plan.md) checkboxes current.
@@ -103,11 +109,10 @@ ideviceinstaller install Apps/<file>.ipa
 
 | Path | What |
 |---|---|
-| `/Users/dmitriy/code/ipa-install-macos/` | this project |
-| `/Users/dmitriy/code/archive/IPA_Downloader/` | the Windows original (reference) |
-| `/Users/dmitriy/code/archive/ipatool-cpp/` | download‑engine source (build from here) |
+| `/Users/dmitriy/code/ipa-install-macos/` | this project (GitHub: goslingmanagment/ipa-install-macos) |
 | `~/.ipatool/` | ipatool session/credentials (do not commit) |
 
-If a referenced repo is missing in a fresh environment, re‑clone:
-`git clone https://github.com/kda2495/IPA_Downloader` and
-`git clone https://github.com/Sorvigolova/ipatool` (pin to the commits above for reproducibility).
+The reference repos are not kept locally. When needed, re‑clone:
+`git clone https://github.com/kda2495/IPA_Downloader` (orig `446a038`) and
+`git clone https://github.com/Sorvigolova/ipatool` (`74f4247`) — pin to these commits for
+reproducibility.

@@ -1,109 +1,108 @@
 # IPA Install for macOS
 
-[English version](README_EN.md)
+[Русская версия](README_RU.md)
 
-Нативное macOS-приложение, которое **скачивает купленные вами приложения из App Store в виде
-.ipa** и **устанавливает их на iPhone/iPad по USB-кабелю**. Порт Windows-инструмента
-[IPA_Downloader](https://github.com/kda2495/IPA_Downloader) — без iTunes и виртуалок:
-на macOS `usbmuxd` встроен в систему.
+A native macOS app that **downloads your purchased App Store apps as .ipa files** and
+**installs them onto an iPhone/iPad over USB**. A port of the Windows tool
+[IPA_Downloader](https://github.com/kda2495/IPA_Downloader) — no iTunes, no VMs:
+macOS ships `usbmuxd` out of the box.
 
-Зачем это нужно: скачать старую версию приложения, поставить приложение, удалённое из App Store
-(но купленное вашим Apple ID), держать локальный архив .ipa своих покупок.
+Why: grab an older version of an app, install an app that was pulled from the App Store
+(but that your Apple ID owns), or keep a local .ipa archive of your purchases.
 
-## Возможности
+## Features
 
-- **Поиск и скачивание** приложений App Store под вашим Apple ID (вход с 2FA поддержан)
-- **Старые версии**: список исторических версий приложения и скачивание любой из них
-- **Установка на устройство** по USB одним пунктом меню (`ideviceinstaller`)
-- **Пакетные операции**: по списку ID, по сохранённым спискам, диапазонами (`1,3-5`)
-- **Скан владения** (только в этой версии): находит ваши купленные приложения, которые уже
-  удалены из App Store, и показывает, какие из них ещё можно скачать
-- **Два интерфейса**: графическое приложение `IpaInstall.app` и терминальное меню на 15 пунктов
-- **Русский и английский** интерфейс, переключение на лету
-- Оффлайн-каталог из 450+ популярных приложений в комплекте
+- **Search & download** App Store apps under your Apple ID (2FA login supported)
+- **Older versions**: list an app's version history and download any of them
+- **Install to device** over USB in one click (`ideviceinstaller`)
+- **Batch operations**: by ID list, saved lists, ranges (`1,3-5`)
+- **Ownership scan** (unique to this port): finds your purchased apps that have been
+  removed from the App Store and shows which are still downloadable
+- **Two interfaces**: the `IpaInstall.app` GUI and a 15-item terminal menu
+- **Russian and English** UI, switchable live
+- Bundled offline catalog of 450+ popular apps
 
-## Установка
+## Install
 
-### Вариант 1: готовое приложение (рекомендуется)
+### Option 1: prebuilt app (recommended)
 
-1. Скачайте `IpaInstall.app.zip` из [Releases](../../releases), распакуйте.
-2. Снимите карантин (приложение подписано ad-hoc, без нотаризации Apple):
+1. Download `IpaInstall.app.zip` from [Releases](../../releases) and unzip.
+2. Clear quarantine (the app is ad-hoc signed, not notarized):
    ```sh
    xattr -cr ~/Downloads/IpaInstall.app
    ```
-3. Для установки на устройство поставьте libimobiledevice:
+3. For device installs, install libimobiledevice:
    ```sh
    brew install ideviceinstaller
    ```
-4. Запускайте. Движок скачивания уже внутри приложения; данные хранятся в
-   `~/Library/Application Support/IpaInstall`, скачанные .ipa — в `~/Downloads/IPA`.
+4. Launch. The download engine is bundled inside the app; data lives in
+   `~/Library/Application Support/IpaInstall`, downloaded .ipa files in `~/Downloads/IPA`.
 
-Требования: macOS 13+, Apple Silicon (для Intel соберите из исходников).
+Requirements: macOS 13+, Apple Silicon (build from source for Intel).
 
-### Вариант 2: из исходников
+### Option 2: from source
 
 ```sh
 git clone https://github.com/goslingmanagment/ipa-install-macos
 cd ipa-install-macos
 
-# движок скачивания (одна команда, см. docs/toolchain-macos.md):
-#   соберите ipatool из github.com/Sorvigolova/ipatool → bin/ipatool
+# download engine (one command, see docs/toolchain-macos.md):
+#   build ipatool from github.com/Sorvigolova/ipatool → bin/ipatool
 brew install ideviceinstaller && ln -sf "$(command -v ideviceinstaller)" bin/ideviceinstaller
 
-# терминальная версия (Python 3, только стандартная библиотека):
+# terminal version (Python 3, stdlib only):
 python3 -m ipa_install
 
-# или графическая:
+# or the GUI:
 cd gui && ./build_app.sh && open IpaInstall.app
 ```
 
-## Установка приложения на iPhone/iPad
+## Installing onto an iPhone/iPad
 
-1. Подключите устройство по USB, разблокируйте, нажмите **Доверять**.
-2. На iOS 16+ включите **Настройки → Конфиденциальность и безопасность → Режим разработчика**,
-   если система попросит.
-3. В GUI: вкладка **Device** → выберите .ipa → Install. В терминале: пункт меню **11**.
+1. Connect the device over USB, unlock it, tap **Trust**.
+2. On iOS 16+, enable **Settings → Privacy & Security → Developer Mode** if prompted.
+3. GUI: **Device** tab → pick the .ipa → Install. Terminal: menu item **11**.
 
-Устройство должно быть залогинено в тот же Apple ID, которым куплено приложение —
-.ipa подписан лицензией FairPlay вашего аккаунта.
+The device must be signed into the same Apple ID that purchased the app —
+the .ipa carries your account's FairPlay license.
 
-## Безопасность и приватность
+## Security & privacy
 
-- Пароль Apple ID и код 2FA **никогда не сохраняются и не логируются** приложением: в терминале
-  их запрашивает сам `ipatool` (скрытый ввод), в GUI они передаются движку через
-  псевдотерминал — не через аргументы командной строки.
-- Сессия хранится в `~/.ipatool/` (шифруется ipatool, привязана к машине).
-- Рекомендуем отдельный/запасной Apple ID: Apple может помечать аккаунты,
-  использующие сторонние клиенты App Store.
+- Your Apple ID password and 2FA code are **never stored or logged** by this app: in the
+  terminal, `ipatool` itself prompts for them (hidden input); in the GUI they are fed to
+  the engine through a pseudo-terminal — never via command-line arguments.
+- The session lives in `~/.ipatool/` (encrypted by ipatool, machine-bound).
+- Consider using a secondary Apple ID: Apple may flag accounts that use
+  third-party App Store clients.
 
-## Легальность
+## Legality
 
-Инструмент работает **только с приложениями, лицензированными вашему Apple ID** — это цифровые
-покупки вашего аккаунта. Он не снимает DRM, не переподписывает .ipa и не даёт доступа к чужим
-приложениям. Это не инструмент пиратства.
+This tool only works with **apps licensed to your Apple ID** — your own digital purchases.
+It does not strip DRM, does not re-sign .ipa files, and gives no access to apps you don't
+own. It is not a piracy tool.
 
-## Как это устроено
+## How it works
 
 ```
 IpaInstall.app / python3 -m ipa_install
-        ├── ipatool (C++, github.com/Sorvigolova/ipatool) — протокол App Store: вход, поиск,
-        │            покупка, скачивание .ipa с FairPlay-лицензией аккаунта
-        └── ideviceinstaller (libimobiledevice) → usbmuxd (встроен в macOS) → iPhone/iPad
+        ├── ipatool (C++, github.com/Sorvigolova/ipatool) — App Store protocol: login,
+        │            search, purchase, .ipa download with your account's FairPlay license
+        └── ideviceinstaller (libimobiledevice) → usbmuxd (built into macOS) → iPhone/iPad
 ```
 
-Для разработчиков: карта документации в [docs/](docs/), архитектура —
-[docs/architecture.md](docs/architecture.md), гид для AI-сессий — [CLAUDE.md](CLAUDE.md).
-Оффлайн-тесты: `python3 tests/run_checks.py` (без сети, Apple ID и устройства);
-селфтест GUI: `gui/IpaInstall.app/Contents/MacOS/IpaInstall --selftest`.
+For developers: docs map in [docs/](docs/), architecture in
+[docs/architecture.md](docs/architecture.md), AI-session guide in [CLAUDE.md](CLAUDE.md).
+Offline tests: `python3 tests/run_checks.py` (no network, Apple ID, or device needed);
+GUI self-test: `gui/IpaInstall.app/Contents/MacOS/IpaInstall --selftest`.
 
-## Благодарности
+## Credits
 
-- [kda2495/IPA_Downloader](https://github.com/kda2495/IPA_Downloader) — оригинальный
-  Windows-инструмент, UX меню взят оттуда
-- [Sorvigolova/ipatool](https://github.com/Sorvigolova/ipatool) — движок скачивания
-  (закреплён на коммите `74f4247`)
-- [libimobiledevice](https://libimobiledevice.org) — связь с устройством
+- [kda2495/IPA_Downloader](https://github.com/kda2495/IPA_Downloader) — the original
+  Windows tool whose menu UX this port follows
+- [Sorvigolova/ipatool](https://github.com/Sorvigolova/ipatool) — the download engine
+  (pinned at commit `74f4247`)
+- [libimobiledevice](https://libimobiledevice.org) — device communication
 
-## Лицензия
+## License
 
 [MIT](LICENSE)

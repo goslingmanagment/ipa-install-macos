@@ -112,7 +112,7 @@ shapes in `ipatool.py`).
 ## Proposed Python layout (Phase 2)
 
 ```
-ipa_install_claude/
+ipa-install-macos/
 ├── ipa_install/
 │   ├── __init__.py
 │   ├── __main__.py        # python3 -m ipa_install  → tui.main()

@@ -103,7 +103,7 @@ ideviceinstaller install Apps/<file>.ipa
 
 | Path | What |
 |---|---|
-| `/Users/dmitriy/code/ipa_install_claude/` | this project |
+| `/Users/dmitriy/code/ipa-install-macos/` | this project |
 | `/Users/dmitriy/code/archive/IPA_Downloader/` | the Windows original (reference) |
 | `/Users/dmitriy/code/archive/ipatool-cpp/` | download‑engine source (build from here) |
 | `~/.ipatool/` | ipatool session/credentials (do not commit) |

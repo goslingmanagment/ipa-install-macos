@@ -24,7 +24,7 @@ swift build -c release
 
 The app locates the project's `bin/`, `Apps/`, `Lists/`, and `assets/` by walking up from its own
 location; if you move `IpaInstall.app` elsewhere, point it at the repo with
-`IPA_INSTALL_ROOT=/path/to/ipa_install_claude`.
+`IPA_INSTALL_ROOT=/path/to/ipa-install-macos`.
 
 ## Full parity with the original 15‑item menu
 

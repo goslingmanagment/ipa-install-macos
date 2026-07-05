@@ -98,7 +98,7 @@ struct AppPaths {
         }
         // 4. fallback to the known project location
         let home = fm.homeDirectoryForCurrentUser
-        return AppPaths(root: home.appendingPathComponent("code/ipa_install_claude"), standalone: false)
+        return AppPaths(root: home.appendingPathComponent("code/ipa-install-macos"), standalone: false)
     }
 
     private func resolve(_ name: String) -> URL {

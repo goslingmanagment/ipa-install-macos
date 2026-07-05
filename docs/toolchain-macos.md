@@ -44,9 +44,9 @@ cmake -S ~/code/ipatool-cpp -B ~/code/ipatool-cpp/build \
 cmake --build ~/code/ipatool-cpp/build -j
 
 # install into the project
-mkdir -p ~/code/ipa_install_claude/bin
-cp ~/code/ipatool-cpp/build/ipatool ~/code/ipa_install_claude/bin/ipatool
-ln -sf "$(which ideviceinstaller)" ~/code/ipa_install_claude/bin/ideviceinstaller   # or copy
+mkdir -p ~/code/ipa-install-macos/bin
+cp ~/code/ipatool-cpp/build/ipatool ~/code/ipa-install-macos/bin/ipatool
+ln -sf "$(which ideviceinstaller)" ~/code/ipa-install-macos/bin/ideviceinstaller   # or copy
 ```
 
 - Output binary: `~/code/ipatool-cpp/build/ipatool`.
@@ -59,8 +59,8 @@ ln -sf "$(which ideviceinstaller)" ~/code/ipa_install_claude/bin/ideviceinstalle
 ## Smoke tests
 
 ```sh
-~/code/ipa_install_claude/bin/ipatool --help
-~/code/ipa_install_claude/bin/ipatool --format json search "telegram" -l 3   # needs login first
+~/code/ipa-install-macos/bin/ipatool --help
+~/code/ipa-install-macos/bin/ipatool --format json search "telegram" -l 3   # needs login first
 ideviceinstaller --version          # expect: 1.2.0
 idevice_id -l                       # list connected device UDIDs (empty if none)
 ```

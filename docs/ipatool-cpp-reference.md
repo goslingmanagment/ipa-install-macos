@@ -22,7 +22,7 @@ cmake -S /Users/dmitriy/code/ipatool-cpp -B /Users/dmitriy/code/ipatool-cpp/buil
   -DOPENSSL_USE_STATIC_LIBS=TRUE
 cmake --build /Users/dmitriy/code/ipatool-cpp/build -j
 
-# output: /Users/dmitriy/code/ipatool-cpp/build/ipatool  → copy to ipa_install_claude/bin/ipatool
+# output: /Users/dmitriy/code/ipatool-cpp/build/ipatool  → copy to ipa-install-macos/bin/ipatool
 ```
 
 ⚠️ **Doc bug in upstream README:** its macOS snippet uses `^` line continuations (Windows `cmd`

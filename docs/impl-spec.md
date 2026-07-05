@@ -3,7 +3,7 @@
 This is the **frozen interface contract** every module is built against. Signatures and data
 shapes here are authoritative — do not deviate. Confirmed against `ipatool-cpp/main.cpp` (JSON
 shapes) and `IPA_Downloader.ps1` (behaviors). Package lives at
-`/Users/dmitriy/code/ipa_install_claude/ipa_install/`.
+`/Users/dmitriy/code/ipa-install-macos/ipa_install/`.
 
 ## Global rules
 - **Python 3, stdlib only.** No third-party imports anywhere. Allowed: `subprocess, json, os, sys,

@@ -1,7 +1,7 @@
 # ipatool‑cpp reference (the download engine)
 
-- **Repo:** https://github.com/Sorvigolova/ipatool (commit `74f4247`, pinned)
-- **Local clone:** `/Users/dmitriy/code/ipatool-cpp`
+- **Repo:** https://github.com/Sorvigolova/ipatool (commit `74f4247161c48aa836d8dea4fe028c0acb3e4ed9`, pinned — `bin/ipatool` is built from it)
+- **Local clone:** `/Users/dmitriy/code/archive/ipatool-cpp` (re-clone from GitHub if missing)
 - **Language/deps:** C++ · libcurl · OpenSSL · nlohmann/json · minizip
 - **Why this fork:** exact engine the original bundles; proven with `ideviceinstaller`; has
   `get-version-metadata` (majd's Go ipatool does not).

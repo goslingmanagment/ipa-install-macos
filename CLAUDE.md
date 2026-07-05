@@ -34,7 +34,7 @@ The end goal is **install‑to‑device**, not just downloading.
   those (`download` minus `--purchase`: not-owned fails fast, owned starts transferring → aborted). Result
   `{removedOwned, removedNotOwned}` → `Lists/Owned_scan.json`. Surfaced as TUI menu **16** and the GUI
   Lists tab **Scan my apps** (sources "Мои — удалены из App Store" / "Удалены — не куплены").
-- Reference repos: `/Users/dmitriy/code/IPA_Downloader` (orig `446a038`), `/Users/dmitriy/code/ipatool-cpp` (`74f4247`).
+- Reference repos: `/Users/dmitriy/code/archive/IPA_Downloader` (orig `446a038`), `/Users/dmitriy/code/archive/ipatool-cpp` (`74f4247`).
 
 **Not done yet**
 - **Phase 1: real‑hardware install is NOT yet validated.** Needs a physical iPhone/iPad + an
@@ -103,9 +103,9 @@ ideviceinstaller install Apps/<file>.ipa
 
 | Path | What |
 |---|---|
-| `/Users/dmitriy/code/ipa_install_claude/` | this project (docs now; code later) |
-| `/Users/dmitriy/code/IPA_Downloader/` | the Windows original (reference) |
-| `/Users/dmitriy/code/ipatool-cpp/` | download‑engine source (build from here) |
+| `/Users/dmitriy/code/ipa_install_claude/` | this project |
+| `/Users/dmitriy/code/archive/IPA_Downloader/` | the Windows original (reference) |
+| `/Users/dmitriy/code/archive/ipatool-cpp/` | download‑engine source (build from here) |
 | `~/.ipatool/` | ipatool session/credentials (do not commit) |
 
 If a referenced repo is missing in a fresh environment, re‑clone:

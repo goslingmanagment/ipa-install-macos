@@ -1,0 +1,27 @@
+# Backends (built/copied locally; never committed)
+bin/
+
+# Downloaded apps and personal data — IPAs embed account Sinf/iTunesMetadata
+Apps/
+*.ipa
+*.ipa.tmp
+
+# Saved app-ID lists (user data)
+Lists/
+
+# Runtime language choice
+Lang_Config.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# SwiftPM GUI build artifacts
+gui/.build/
+gui/IpaInstall.app/
+gui/*.app/
+
+# macOS
+.DS_Store

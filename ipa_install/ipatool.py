@@ -15,7 +15,10 @@ to the subprocess argv.
 from __future__ import annotations
 
 import json
+import os
+import shutil
 import subprocess
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Union
@@ -166,55 +169,41 @@ def download(
 
     This intentionally does *not* use ``--format json``: ipatool draws a live
     progress bar when attached to a TTY, so we run with stdin/stdout/stderr
-    inherited and discover the produced file by diffing the directory's ``*.ipa``
-    set/mtimes before and after the run. The newest file that is new — or whose
-    mtime advanced — is the download.
+    inherited. To identify the produced file unambiguously, ipatool writes into
+    a private temp subdirectory (so the only ``*.ipa`` there is ours), and the
+    finished file is then moved up into ``output_dir``. A failed/aborted run
+    therefore never leaves partial files in ``output_dir`` either.
     """
     out_dir = Path(output_dir)
-    args = [config.IPATOOL, "download", "-i", str(app_id), "-o", str(out_dir)]
+    tmp_dir = out_dir / f".dl-{os.getpid()}-{uuid.uuid4().hex[:8]}"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+
+    args = [config.IPATOOL, "download", "-i", str(app_id), "-o", str(tmp_dir)]
     if external_version_id is not None:
         args += ["--external-version-id", str(external_version_id)]
     if purchase:
         # Boolean flag goes last so ipatool's parser doesn't swallow a following value.
         args += ["--purchase"]
 
-    # Snapshot existing IPAs (path -> mtime) so we can spot the new/changed one.
-    before: dict = {}
     try:
-        for p in out_dir.glob("*.ipa"):
-            try:
-                before[p] = p.stat().st_mtime
-            except OSError:
-                pass
-    except OSError:
-        pass
+        # Attached run: lets the native progress bar render to the user's terminal.
+        proc = subprocess.run(args)
+        if proc.returncode != 0:
+            raise IpatoolError("download failed")
 
-    # Attached run: lets the native progress bar render to the user's terminal.
-    proc = subprocess.run(args)
-    if proc.returncode != 0:
-        raise IpatoolError("download failed")
+        produced = sorted(
+            tmp_dir.glob("*.ipa"),
+            key=lambda p: p.stat().st_mtime,
+        )
+        if not produced:
+            raise IpatoolError("download produced no file")
 
-    # Collect IPAs that are new or whose mtime increased; pick the newest.
-    candidates = []
-    try:
-        ipas = list(out_dir.glob("*.ipa"))
-    except OSError:
-        ipas = []
-    for p in ipas:
-        try:
-            mtime = p.stat().st_mtime
-        except OSError:
-            continue
-        prior = before.get(p)
-        if prior is None or mtime > prior:
-            candidates.append((mtime, p))
-
-    if not candidates:
-        raise IpatoolError("download produced no file")
-
-    candidates.sort(key=lambda item: item[0])
-    newest = candidates[-1][1]
-    return DownloadResult(output=str(newest), purchased=purchase)
+        # Same app+version re-downloaded → same name; replacing is the intent.
+        final = out_dir / produced[-1].name
+        produced[-1].replace(final)
+        return DownloadResult(output=str(final), purchased=purchase)
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 def list_versions(app_id: str) -> list:

@@ -114,8 +114,9 @@ def connect_apple_id() -> None:
         name = info.get("name", "")
         mail = info.get("email", "")
         print(f"  {name}  <{mail}>")
-    except ipatool.IpatoolError:
-        pass
+    except ipatool.IpatoolError as e:
+        # Logged in, but the info lookup failed — say so instead of hiding it.
+        error(str(e) or "auth info failed")
 
 
 # ── shared sub-flows ────────────────────────────────────────────────────────────

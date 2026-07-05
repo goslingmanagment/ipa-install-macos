@@ -20,6 +20,12 @@ rm -rf "$BUNDLE"
 mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
 cp "$BIN" "$BUNDLE/Contents/MacOS/$APP"
 
+# Bundle the download engine + offline catalog so the .app works standalone
+# (outside the repo it stores data in ~/Library/Application Support/IpaInstall
+# and downloads into ~/Downloads/IPA). ideviceinstaller stays a Homebrew dep.
+cp "$HERE/../bin/ipatool" "$BUNDLE/Contents/Resources/ipatool"
+cp "$HERE/../assets/Apps_ID_List.txt" "$BUNDLE/Contents/Resources/Apps_ID_List.txt"
+
 cat > "$BUNDLE/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -43,10 +49,12 @@ PLIST
 
 printf 'APPL????' > "$BUNDLE/Contents/PkgInfo"
 
-# Ad-hoc sign so Gatekeeper lets it launch locally.
+# Ad-hoc sign so Gatekeeper lets it launch locally (nested binary first).
+codesign --force --sign - "$BUNDLE/Contents/Resources/ipatool" >/dev/null 2>&1 || echo "   (codesign ipatool skipped)"
 codesign --force --sign - "$BUNDLE" >/dev/null 2>&1 || echo "   (codesign skipped)"
 
 echo "==> done: $BUNDLE"
 echo "   open it with:  open \"$BUNDLE\""
-echo "   (the app finds the project's bin/Apps/Lists by walking up from its location;"
-echo "    if you move it, set IPA_INSTALL_ROOT=/path/to/ipa_install_claude)"
+echo "   (inside the repo the app shares the project's bin/Apps/Lists; moved elsewhere"
+echo "    it runs standalone: bundled ipatool, data in ~/Library/Application Support/IpaInstall,"
+echo "    downloads in ~/Downloads/IPA. Override with IPA_INSTALL_ROOT=/path/to/repo.)"

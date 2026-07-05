@@ -3,10 +3,10 @@
 // protocol logic of its own; it shells out to the very same bin/ binaries.
 //
 // GUI differences vs. the terminal version (no TTY available):
-//   • auth login passes -e/-p/--auth-code on argv (ipatool refuses hidden
-//     prompts when stdin is not a terminal). The password is therefore visible
-//     to other local processes via `ps` for the duration of the call — an
-//     inherent limitation of ipatool's CLI; we never store or log it ourselves.
+//   • auth login feeds the password (and 2FA code) to ipatool through a PTY
+//     attached as the child's stdin — ipatool only prompts for a hidden
+//     password on a TTY, and this keeps secrets off argv (argv is readable by
+//     any same-user process via `ps`). We never store or log them ourselves.
 //   • download runs with `--format json` and we read the saved path from the
 //     JSON `output` key (no progress bar is drawn without a TTY).
 
@@ -63,6 +63,7 @@ enum BackendError: LocalizedError {
 // ── Path / binary resolution (mirrors config.py) ────────────────────────────────
 struct AppPaths {
     let root: URL
+    let standalone: Bool   // true when running as a bundle-only .app outside the repo
 
     static func discover() -> AppPaths {
         let fm = FileManager.default
@@ -72,29 +73,42 @@ struct AppPaths {
         // 1. explicit override
         if let env = ProcessInfo.processInfo.environment["IPA_INSTALL_ROOT"] {
             let u = URL(fileURLWithPath: env)
-            if hasBin(u) { return AppPaths(root: u) }
+            if hasBin(u) { return AppPaths(root: u, standalone: false) }
         }
-        // 2. walk up from CWD, then from the executable location
+        // 2. walk up from CWD, then from the executable location (dev / in-repo mode)
         var starts = [URL(fileURLWithPath: fm.currentDirectoryPath)]
         if let exe = Bundle.main.executableURL { starts.append(exe.deletingLastPathComponent()) }
         starts.append(URL(fileURLWithPath: CommandLine.arguments.first ?? ".").deletingLastPathComponent())
         for start in starts {
             var dir = start.standardizedFileURL
             for _ in 0..<8 {
-                if hasBin(dir) { return AppPaths(root: dir) }
+                if hasBin(dir) { return AppPaths(root: dir, standalone: false) }
                 let parent = dir.deletingLastPathComponent()
                 if parent.path == dir.path { break }
                 dir = parent
             }
         }
-        // 3. fallback to the known project location
+        // 3. standalone .app: the engine is bundled in Contents/Resources; user
+        //    data lives under ~/Library/Application Support/IpaInstall.
+        if let res = Bundle.main.resourceURL,
+           fm.isExecutableFile(atPath: res.appendingPathComponent("ipatool").path) {
+            let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+                ?? fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
+            return AppPaths(root: support.appendingPathComponent("IpaInstall"), standalone: true)
+        }
+        // 4. fallback to the known project location
         let home = fm.homeDirectoryForCurrentUser
-        return AppPaths(root: home.appendingPathComponent("code/ipa_install_claude"))
+        return AppPaths(root: home.appendingPathComponent("code/ipa_install_claude"), standalone: false)
     }
 
     private func resolve(_ name: String) -> URL {
         let local = root.appendingPathComponent("bin").appendingPathComponent(name)
         if FileManager.default.isExecutableFile(atPath: local.path) { return local }
+        // bundled copy inside the .app (standalone releases ship ipatool)
+        if let res = Bundle.main.resourceURL {
+            let cand = res.appendingPathComponent(name)
+            if FileManager.default.isExecutableFile(atPath: cand.path) { return cand }
+        }
         // search PATH, then common Homebrew prefixes
         let path = ProcessInfo.processInfo.environment["PATH"] ?? ""
         var dirs = path.split(separator: ":").map(String.init)
@@ -112,9 +126,24 @@ struct AppPaths {
     var idevicePair: URL { resolve("idevicepair") }
     var unzip: URL { URL(fileURLWithPath: "/usr/bin/unzip") }
 
-    var appsDir: URL { root.appendingPathComponent("Apps") }
+    // Standalone: downloads go where the user can find them (~/Downloads/IPA);
+    // in-repo: keep sharing Apps/ with the Python TUI.
+    var appsDir: URL {
+        if standalone {
+            let fm = FileManager.default
+            let downloads = fm.urls(for: .downloadsDirectory, in: .userDomainMask).first
+                ?? fm.homeDirectoryForCurrentUser.appendingPathComponent("Downloads")
+            return downloads.appendingPathComponent("IPA")
+        }
+        return root.appendingPathComponent("Apps")
+    }
     var listsDir: URL { root.appendingPathComponent("Lists") }
-    var assetsList: URL { root.appendingPathComponent("assets/Apps_ID_List.txt") }
+    var assetsList: URL {
+        let inRepo = root.appendingPathComponent("assets/Apps_ID_List.txt")
+        if FileManager.default.fileExists(atPath: inRepo.path) { return inRepo }
+        // standalone releases bundle the offline catalog in Resources
+        return (Bundle.main.resourceURL ?? root).appendingPathComponent("Apps_ID_List.txt")
+    }
     var downloadedList: URL { listsDir.appendingPathComponent("Downloaded_IDs.json") }
     var purchasedList: URL { listsDir.appendingPathComponent("Purchased_IDs.json") }
     var ownedScanFile: URL { listsDir.appendingPathComponent("Owned_scan.json") }
@@ -207,21 +236,83 @@ struct Backend {
     }
 
     func authLogin(email: String, password: String, authCode: String?) throws -> LoginOutcome {
-        var args = ["--format", "json", "auth", "login", "-e", email, "-p", password]
-        if let code = authCode, !code.isEmpty { args += ["--auth-code", code] }
-        let r = try run(paths.ipatool, args)
-        if r.code == 0 {
-            if let d = Self.jsonObject(from: r.out) {
+        // The password never goes on argv (any same-user process can read argv via
+        // `ps`). ipatool only prompts for a hidden password when stdin is a TTY, so
+        // the child gets a PTY slave as stdin and we type the secrets into the PTY
+        // master: first the password, then the 2FA code if we have one. Closing the
+        // master right after delivers EOF once the buffer drains, so a login that
+        // unexpectedly needs a code we don't have exits instead of hanging on the
+        // prompt (its stderr then contains "Enter 2FA code:", mapped below).
+        let args = ["--format", "json", "auth", "login", "-e", email]
+        var master: Int32 = -1
+        var slave: Int32 = -1
+        guard openpty(&master, &slave, nil, nil, nil) == 0 else {
+            throw BackendError.message("cannot allocate a terminal for the login prompt")
+        }
+        let masterHandle = FileHandle(fileDescriptor: master, closeOnDealloc: false)
+        let slaveHandle = FileHandle(fileDescriptor: slave, closeOnDealloc: false)
+
+        let proc = Process()
+        proc.executableURL = paths.ipatool
+        proc.arguments = args
+        let out = Pipe(); let err = Pipe()
+        proc.standardOutput = out
+        proc.standardError = err
+        proc.standardInput = slaveHandle
+        do { try proc.run() } catch {
+            try? masterHandle.close(); try? slaveHandle.close()
+            throw BackendError.message("cannot launch ipatool: \(error.localizedDescription)")
+        }
+        try? slaveHandle.close() // the child owns its copy now
+
+        var secrets = password + "\n"
+        if let code = authCode, !code.isEmpty { secrets += code + "\n" }
+        try? masterHandle.write(contentsOf: Data(secrets.utf8))
+        try? masterHandle.close()
+
+        var errData = Data()
+        let group = DispatchGroup()
+        group.enter()
+        DispatchQueue.global(qos: .userInitiated).async {
+            errData = err.fileHandleForReading.readDataToEndOfFile()
+            group.leave()
+        }
+        let outData = out.fileHandleForReading.readDataToEndOfFile()
+        group.wait()
+        proc.waitUntilExit()
+
+        let outStr = String(decoding: outData, as: UTF8.self)
+        let errStr = String(decoding: errData, as: UTF8.self)
+        if proc.terminationStatus == 0 {
+            if let d = Self.jsonObject(from: outStr) {
                 return .success(AccountInfo(name: Self.str(d["name"]), email: Self.str(d["email"])))
             }
             return .success(AccountInfo(name: "", email: email))
         }
-        let blob = (r.err + r.out).lowercased()
-        if blob.contains("two-factor") || blob.contains("auth-code") || blob.contains("auth code") {
+        let blob = (errStr + outStr).lowercased()
+        if blob.contains("two-factor") || blob.contains("auth-code")
+            || blob.contains("auth code") || blob.contains("2fa code") {
             return .twoFactorRequired
         }
-        let m = r.err.trimmingCharacters(in: .whitespacesAndNewlines)
+        let m = Self.cleanLoginError(errStr)
         throw BackendError.message(m.isEmpty ? "login failed" : m)
+    }
+
+    // Strip ipatool's interactive prompt noise ("Enter password: ****") from
+    // stderr so the user sees only the actual error line.
+    private static func cleanLoginError(_ err: String) -> String {
+        return err
+            .split(separator: "\n")
+            .map { line -> String in
+                var s = String(line)
+                for prompt in ["Enter password: ", "Enter 2FA code: "] {
+                    if let r = s.range(of: prompt) { s = String(s[r.upperBound...]) }
+                }
+                return s.trimmingCharacters(in: CharacterSet(charactersIn: "*").union(.whitespaces))
+            }
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     func authRevoke() {
